@@ -43,17 +43,6 @@ module "eks" {
   cluster_version                = local.cluster_version
   cluster_endpoint_public_access = true
 
-  # IPV6
-  cluster_ip_family = "ipv6"
-
-  # We are using the IRSA created below for permissions
-  # However, we have to deploy with the policy attached FIRST (when creating a fresh cluster)
-  # and then turn this off after the cluster/node group is created. Without this initial policy,
-  # the VPC CNI fails to assign IPs and nodes cannot join the cluster
-  # See https://github.com/aws/containers-roadmap/issues/1666 for more context
-  # TODO - remove this policy once AWS releases a managed version similar to AmazonEKS_CNI_Policy (IPv4)
-  create_cni_ipv6_iam_policy = true
-
   cluster_addons = {
     coredns = {
       most_recent = true
@@ -65,13 +54,6 @@ module "eks" {
       most_recent              = true
       before_compute           = true
       service_account_role_arn = module.vpc_cni_irsa.iam_role_arn
-      configuration_values = jsonencode({
-        env = {
-          # Reference docs https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html
-          ENABLE_PREFIX_DELEGATION = "true"
-          WARM_PREFIX_TARGET       = "1"
-        }
-      })
     }
   }
 
@@ -85,14 +67,9 @@ module "eks" {
     ami_type       = "AL2_x86_64"
     instance_types = ["m6i.large", "m5.large", "m5n.large", "m5zn.large"]
 
-    # We are using the IRSA created below for permissions
-    # However, we have to deploy with the policy attached FIRST (when creating a fresh cluster)
-    # and then turn this off after the cluster/node group is created. Without this initial policy,
-    # the VPC CNI fails to assign IPs and nodes cannot join the cluster
-    # See https://github.com/aws/containers-roadmap/issues/1666 for more context
     iam_role_attach_cni_policy = true
   }
-
+}
   eks_managed_node_groups = {
     # Default node group - as provided by AWS EKS
     default_node_group = {
